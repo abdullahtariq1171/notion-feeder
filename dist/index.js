@@ -48252,9 +48252,12 @@ async function getNewFeedItems() {
 
   for (let i = 0; i < feeds.length; i++) {
     const {
+      title,
       feedUrl
     } = feeds[i];
+    console.log(`\n\n***\nStarting feed "${title}": `);
     const feedItems = await getNewFeedItemsFrom(feedUrl);
+    console.log('Feeds received: ', feedItems?.length);
     allNewFeedItems = [...allNewFeedItems, ...feedItems];
   } // sort feed items by published date
 
