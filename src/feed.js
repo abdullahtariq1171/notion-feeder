@@ -35,7 +35,7 @@ export default async function getNewFeedItems() {
     const { title, feedUrl } = feeds[i];
     console.log(`\n\n***\nStarting feed "${title}": `);
     const feedItems = await getNewFeedItemsFrom(feedUrl);
-    console.log("Feeds received: ", feedItems?.length);
+    console.log('Feeds received: ', feedItems?.length);
 
     allNewFeedItems = [...allNewFeedItems, ...feedItems];
   }
