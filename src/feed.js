@@ -32,8 +32,11 @@ export default async function getNewFeedItems() {
   const feeds = await getFeedUrlsFromNotion();
 
   for (let i = 0; i < feeds.length; i++) {
-    const { feedUrl } = feeds[i];
+    const { title, feedUrl } = feeds[i];
+    console.log(`\n\n***\nStarting feed "${title}": `);
     const feedItems = await getNewFeedItemsFrom(feedUrl);
+    console.log("Feeds received: ", feedItems?.length);
+
     allNewFeedItems = [...allNewFeedItems, ...feedItems];
   }
 
