@@ -49268,12 +49268,10 @@ async function index() {
       content: htmlToNotionBlocks(item.content),
       description: item.content
     };
-    console.log(`Title: ${item.title}`);
 
     if (isNewEntry) {
       await addFeedItemToNotion(notionItem);
-    } // await addFeedItemToNotion(notionItem);
-
+    }
   }
 
   await deleteOldUnreadFeedItemsFromNotion();
