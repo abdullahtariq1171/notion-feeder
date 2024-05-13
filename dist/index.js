@@ -48071,22 +48071,6 @@ var rss_parser = __webpack_require__(5003);
 var rss_parser_default = /*#__PURE__*/__webpack_require__.n(rss_parser);
 // EXTERNAL MODULE: ./node_modules/dotenv/lib/main.js
 var main = __webpack_require__(9738);
-;// CONCATENATED MODULE: ./src/helpers.js
-function timeDifference(date1, date2) {
-  const difference = Math.floor(date1) - Math.floor(date2);
-  const diffInDays = Math.floor(difference / 60 / 60 / 24);
-  const diffInHours = Math.floor(difference / 60 / 60);
-  const diffInMinutes = Math.floor(difference / 60);
-  const diffInSeconds = Math.floor(difference);
-  return {
-    date1,
-    date2,
-    diffInDays,
-    diffInHours,
-    diffInMinutes,
-    diffInSeconds
-  };
-}
 // EXTERNAL MODULE: ./node_modules/@notionhq/client/build/src/index.js
 var src = __webpack_require__(9267);
 ;// CONCATENATED MODULE: ./src/notion.js
@@ -48100,6 +48084,22 @@ const {
   CI
 } = process.env;
 const logLevel = CI ? src/* LogLevel.INFO */["in"].INFO : src/* LogLevel.DEBUG */["in"].DEBUG;
+async function getExistingPages(items) {
+  const notion = new src/* Client */.KU({
+    auth: NOTION_API_TOKEN,
+    logLevel
+  });
+  const response = await notion.databases.query({
+    database_id: NOTION_READER_DATABASE_ID,
+    or: items.map(item => ({
+      property: 'Link',
+      text: {
+        equals: item.link
+      }
+    }))
+  });
+  return response.results;
+}
 async function getFeedUrlsFromNotion() {
   const notion = new src/* Client */.KU({
     auth: NOTION_API_TOKEN,
@@ -48134,12 +48134,14 @@ async function addFeedItemToNotion(notionItem) {
   const {
     title,
     link,
-    content
+    content,
+    description
   } = notionItem;
   const notion = new src/* Client */.KU({
     auth: NOTION_API_TOKEN,
     logLevel
   });
+  const descriptionChunks = description.match(/(.|[\r\n]){1,1999}/g);
 
   try {
     await notion.pages.create({
@@ -48156,6 +48158,20 @@ async function addFeedItemToNotion(notionItem) {
         },
         Link: {
           url: link
+        },
+        description: {
+          rich_text: [{
+            text: {
+              content: descriptionChunks[0]
+            }
+          }]
+        },
+        description2: {
+          rich_text: [{
+            text: {
+              content: descriptionChunks[1] ?? ''
+            }
+          }]
         }
       },
       children: content
@@ -48235,15 +48251,13 @@ async function getNewFeedItemsFrom(feedUrl) {
     return [];
   }
 
-  const currentTime = new Date().getTime() / 1000; // Filter out items that fall in the run frequency range
-
-  return rss.items.filter(item => {
-    const blogPublishedTime = new Date(item.pubDate).getTime() / 1000;
-    const {
-      diffInSeconds
-    } = timeDifference(currentTime, blogPublishedTime);
-    return diffInSeconds < RUN_FREQUENCY;
-  });
+  const currentTime = new Date().getTime() / 1000;
+  return rss.items; // // Filter out items that fall in the run frequency range
+  // return rss.items.filter((item) => {
+  //   const blogPublishedTime = new Date(item.pubDate).getTime() / 1000;
+  //   const { diffInSeconds } = timeDifference(currentTime, blogPublishedTime);
+  //   return diffInSeconds < RUN_FREQUENCY;
+  // });
 }
 
 async function getNewFeedItems() {
@@ -49242,15 +49256,24 @@ function htmlToNotionBlocks(htmlContent) {
 
 async function index() {
   const feedItems = await getNewFeedItems();
+  const existingPages = await getExistingPages(feedItems);
 
   for (let i = 0; i < feedItems.length; i++) {
     const item = feedItems[i];
+    const existingEntries = existingPages.find(page => page.properties.Link.url === item.link);
+    const isNewEntry = existingEntries === undefined;
     const notionItem = {
       title: item.title,
       link: item.link,
-      content: htmlToNotionBlocks(item.content)
+      content: htmlToNotionBlocks(item.content),
+      description: item.content
     };
-    await addFeedItemToNotion(notionItem);
+    console.log(`Title: ${item.title}`);
+
+    if (isNewEntry) {
+      await addFeedItemToNotion(notionItem);
+    } // await addFeedItemToNotion(notionItem);
+
   }
 
   await deleteOldUnreadFeedItemsFromNotion();
