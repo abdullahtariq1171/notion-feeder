@@ -12,6 +12,24 @@ const {
 
 const logLevel = CI ? LogLevel.INFO : LogLevel.DEBUG;
 
+export async function getExistingPages(items) {
+  const notion = new Client({
+    auth: NOTION_API_TOKEN,
+    logLevel,
+  });
+  const response = await notion.databases.query({
+    database_id: NOTION_READER_DATABASE_ID,
+    or: items.map((item) => ({
+      property: 'Link',
+      text: {
+        equals: item.link,
+      },
+    })),
+  });
+
+  return response.results;
+}
+
 export async function getFeedUrlsFromNotion() {
   const notion = new Client({
     auth: NOTION_API_TOKEN,
@@ -47,12 +65,14 @@ export async function getFeedUrlsFromNotion() {
 }
 
 export async function addFeedItemToNotion(notionItem) {
-  const { title, link, content } = notionItem;
+  const { title, link, content, description } = notionItem;
 
   const notion = new Client({
     auth: NOTION_API_TOKEN,
     logLevel,
   });
+
+  const descriptionChunks = description.match(/(.|[\r\n]){1,1999}/g);
 
   try {
     await notion.pages.create({
@@ -71,6 +91,24 @@ export async function addFeedItemToNotion(notionItem) {
         },
         Link: {
           url: link,
+        },
+        description: {
+          rich_text: [
+            {
+              text: {
+                content: descriptionChunks[0],
+              },
+            },
+          ],
+        },
+        description2: {
+          rich_text: [
+            {
+              text: {
+                content: descriptionChunks[1] ?? '',
+              },
+            },
+          ],
         },
       },
       children: content,
